@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="beauty.dao.WishlistDAO">
+
+    <!-- 찜 추가 -->
+    <insert id="insert" parameterType="map">
+        INSERT INTO t_wishlist (member_id, product_id)
+        VALUES (#{memberId}, #{productId})
+    </insert>
+
+    <!-- 찜 취소 -->
+    <delete id="delete" parameterType="map">
+        DELETE FROM t_wishlist
+         WHERE member_id = #{memberId} AND product_id = #{productId}
+    </delete>
+
+    <!-- 찜 여부 확인 -->
+    <select id="selectCount" parameterType="map" resultType="int">
+        SELECT COUNT(*) FROM t_wishlist
+         WHERE member_id = #{memberId} AND product_id = #{productId}
+    </select>
+
+    <!-- 내 찜 목록 (상품 정보 JOIN) -->
+    <select id="selectMyList" parameterType="String" resultType="productVO">
+        SELECT p.product_id as productId
+             , p.product_name as productName
+             , p.brand_name as brandName
+             , p.price
+             , p.original_price as originalPrice
+             , p.discount_rate as discountRate
+             , p.product_url as productUrl
+             , ROUND(AVG(r.rating), 2) as avgRating
+             , COUNT(r.review_id) as reviewCount
+          FROM t_wishlist w
+          JOIN t_product p ON w.product_id = p.product_id
+          LEFT JOIN t_review r ON p.product_id = r.product_id
+         WHERE w.member_id = #{memberId}
+         GROUP BY p.product_id, p.product_name, p.brand_name, p.price,
+                  p.original_price, p.discount_rate, p.product_url, w.reg_date
+         ORDER BY w.reg_date DESC
+    </select>
+
+</mapper>

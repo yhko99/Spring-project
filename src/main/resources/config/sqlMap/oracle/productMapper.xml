@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="beauty.dao.ProductDAO">
+
+    <select id="selectOne" parameterType="int" resultType="productVO">
+        SELECT product_id as productId
+             , product_name as productName
+             , brand_name as brandName
+             , price
+             , original_price as originalPrice
+             , discount_rate as discountRate
+             , product_url as productUrl
+          FROM t_product
+         WHERE product_id = #{productId}
+    </select>
+
+    <select id="selectListByBrand" parameterType="String" resultType="productVO">
+        SELECT product_id as productId
+             , product_name as productName
+             , brand_name as brandName
+             , price
+             , original_price as originalPrice
+             , discount_rate as discountRate
+             , product_url as productUrl
+          FROM t_product
+         WHERE brand_name = #{brandName}
+         ORDER BY product_id DESC
+    </select>
+
+    <!-- 평점 높은 상품 Top N (리뷰 5건 이상) -->
+    <select id="selectTopRated" parameterType="int" resultType="productVO">
+        SELECT *
+          FROM (
+                SELECT p.product_id as productId
+                     , p.product_name as productName
+                     , p.brand_name as brandName
+                     , p.price
+                     , p.original_price as originalPrice
+                     , p.discount_rate as discountRate
+                     , p.product_url as productUrl
+                     , ROUND(AVG(r.rating), 2) as avgRating
+                     , COUNT(r.review_id) as reviewCount
+                  FROM t_product p
+                  JOIN t_review r ON p.product_id = r.product_id
+                 GROUP BY p.product_id, p.product_name, p.brand_name, p.price
+                        , p.original_price, p.discount_rate, p.product_url
+                HAVING COUNT(r.review_id) >= 5
+                 ORDER BY avgRating DESC
+               )
+         WHERE ROWNUM <![CDATA[<=]]> #{limit}
+    </select>
+
+    <!-- 리뷰 많은 상품 Top N -->
+    <select id="selectTopReviewed" parameterType="int" resultType="productVO">
+        SELECT *
+          FROM (
+                SELECT p.product_id as productId
+                     , p.product_name as productName
+                     , p.brand_name as brandName
+                     , p.price
+                     , p.original_price as originalPrice
+                     , p.discount_rate as discountRate
+                     , p.product_url as productUrl
+                     , ROUND(AVG(r.rating), 2) as avgRating
+                     , COUNT(r.review_id) as reviewCount
+                  FROM t_product p
+                  JOIN t_review r ON p.product_id = r.product_id
+                 GROUP BY p.product_id, p.product_name, p.brand_name, p.price
+                        , p.original_price, p.discount_rate, p.product_url
+                 ORDER BY reviewCount DESC
+               )
+         WHERE ROWNUM <![CDATA[<=]]> #{limit}
+    </select>
+
+    <!-- 피부타입별 추천 상품 (해당 피부타입 평점이 높은 상품) -->
+    <select id="selectRecommendBySkinType" parameterType="map" resultType="productVO">
+        SELECT *
+          FROM (
+                SELECT p.product_id as productId
+                     , p.product_name as productName
+                     , p.brand_name as brandName
+                     , p.price
+                     , p.original_price as originalPrice
+                     , p.discount_rate as discountRate
+                     , p.product_url as productUrl
+                     , ROUND(AVG(r.rating), 2) as avgRating
+                     , COUNT(r.review_id) as reviewCount
+                  FROM t_product p
+                  JOIN t_review r ON p.product_id = r.product_id
+                 WHERE r.skin_type LIKE '%' || #{skinType} || '%'
+                 GROUP BY p.product_id, p.product_name, p.brand_name, p.price
+                        , p.original_price, p.discount_rate, p.product_url
+                HAVING COUNT(r.review_id) >= 3
+                 ORDER BY avgRating DESC, reviewCount DESC
+               )
+         WHERE ROWNUM <![CDATA[<=]]> #{limit}
+    </select>
+
+
+    <!-- 상품 상세 통계 (평균평점, 리뷰수, 감성분포, 평점분포) -->
+    <select id="selectDetailStats" parameterType="int" resultType="map">
+        SELECT ROUND(AVG(rating), 2)                                          as avgRating
+             , COUNT(*)                                                        as reviewCount
+             , SUM(CASE WHEN sentiment = '긍정' THEN 1 ELSE 0 END)            as posCnt
+             , SUM(CASE WHEN sentiment = '중립' THEN 1 ELSE 0 END)            as neuCnt
+             , SUM(CASE WHEN sentiment = '부정' THEN 1 ELSE 0 END)            as negCnt
+             , SUM(CASE WHEN rating = 5 THEN 1 ELSE 0 END)                    as r5
+             , SUM(CASE WHEN rating = 4 THEN 1 ELSE 0 END)                    as r4
+             , SUM(CASE WHEN rating = 3 THEN 1 ELSE 0 END)                    as r3
+             , SUM(CASE WHEN rating = 2 THEN 1 ELSE 0 END)                    as r2
+             , SUM(CASE WHEN rating = 1 THEN 1 ELSE 0 END)                    as r1
+          FROM t_review
+         WHERE product_id = #{productId}
+    </select>
+
+    <!-- 상품별 리뷰 목록 (페이징) -->
+    <select id="selectReviewsByProduct" parameterType="map" resultType="reviewVO">
+        SELECT review_id as reviewId
+             , product_id as productId
+             , nickname
+             , review_date as reviewDate
+             , rating
+             , skin_type as skinType
+             , skin_tone as skinTone
+             , review_text as reviewText
+             , helpful
+             , sentiment
+          FROM t_review
+         WHERE product_id = #{productId}
+         ORDER BY helpful DESC, review_id DESC
+         OFFSET #{offset} ROWS FETCH NEXT #{limit} ROWS ONLY
+    </select>
+
+    <!-- 상품별 리뷰 총 건수 -->
+    <select id="selectReviewCountByProduct" parameterType="int" resultType="int">
+        SELECT COUNT(*) FROM t_review WHERE product_id = #{productId}
+    </select>
+
+    <!-- 브랜드 통계 (상품수, 평균평점, 총리뷰수) -->
+    <select id="selectBrandStats" parameterType="String" resultType="map">
+        SELECT COUNT(DISTINCT p.product_id)  as productCount
+             , ROUND(AVG(r.rating), 2)       as avgRating
+             , COUNT(r.review_id)            as totalReviews
+          FROM t_product p
+          LEFT JOIN t_review r ON p.product_id = r.product_id
+         WHERE p.brand_name = #{brandName}
+    </select>
+
+    <!-- 브랜드별 상품 + 통계 -->
+    <select id="selectListByBrandWithStats" parameterType="String" resultType="productVO">
+        SELECT p.product_id as productId
+             , p.product_name as productName
+             , p.brand_name as brandName
+             , p.price
+             , p.original_price as originalPrice
+             , p.discount_rate as discountRate
+             , p.product_url as productUrl
+             , ROUND(AVG(r.rating), 2) as avgRating
+             , COUNT(r.review_id) as reviewCount
+          FROM t_product p
+          LEFT JOIN t_review r ON p.product_id = r.product_id
+         WHERE p.brand_name = #{brandName}
+         GROUP BY p.product_id, p.product_name, p.brand_name, p.price,
+                  p.original_price, p.discount_rate, p.product_url
+         ORDER BY reviewCount DESC
+    </select>
+
+</mapper>

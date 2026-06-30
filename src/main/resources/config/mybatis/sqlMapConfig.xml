@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration
+  PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-config.dtd">
+
+<configuration>
+    <typeAliases>
+        <typeAlias type="kr.ac.kopo.beauty.vo.ProductVO" alias="productVO"/>
+        <typeAlias type="kr.ac.kopo.beauty.vo.ReviewVO" alias="reviewVO"/>
+        <typeAlias type="kr.ac.kopo.beauty.vo.MemberVO" alias="memberVO"/>
+    </typeAliases>
+</configuration>

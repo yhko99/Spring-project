@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="beauty.dao.StatsDAO">
+
+    <select id="selectTotalReviewCount" resultType="int">
+        SELECT COUNT(*) FROM t_review
+    </select>
+
+    <select id="selectTotalProductCount" resultType="int">
+        SELECT COUNT(*) FROM t_product
+    </select>
+
+    <select id="selectTotalBrandCount" resultType="int">
+        SELECT COUNT(DISTINCT brand_name) FROM t_product
+    </select>
+
+    <!-- 평점 분포 (1~5점) -->
+    <!-- Oracle은 별칭에 쌍따옴표가 없으면 대문자로 변환되어 Map 키가 깨지므로 명시적으로 케이스를 고정한다 -->
+    <select id="selectRatingDistribution" resultType="map">
+        SELECT ROUND(rating) AS "rating"
+             , COUNT(*) AS "cnt"
+          FROM t_review
+         WHERE rating IS NOT NULL
+         GROUP BY ROUND(rating)
+         ORDER BY ROUND(rating)
+    </select>
+
+    <!-- 감성 분석 비율 -->
+    <select id="selectSentimentDistribution" resultType="map">
+        SELECT sentiment AS "sentiment"
+             , COUNT(*) AS "cnt"
+          FROM t_review
+         WHERE sentiment IS NOT NULL
+         GROUP BY sentiment
+         ORDER BY "cnt" DESC
+    </select>
+
+    <!-- 피부톤별 리뷰 분포 -->
+    <select id="selectSkinToneDistribution" resultType="map">
+        SELECT skin_tone AS "skinTone"
+             , COUNT(*) AS "cnt"
+          FROM t_review
+         WHERE skin_tone IS NOT NULL
+         GROUP BY skin_tone
+         ORDER BY "cnt" DESC
+    </select>
+
+    <!-- 브랜드별 평균 평점 랭킹 -->
+    <select id="selectBrandRatingRanking" resultType="map">
+        SELECT p.brand_name AS "brandName"
+             , ROUND(AVG(r.rating), 2) AS "avgRating"
+             , COUNT(r.review_id) AS "reviewCount"
+          FROM t_product p
+          JOIN t_review r ON p.product_id = r.product_id
+         GROUP BY p.brand_name
+        HAVING COUNT(r.review_id) >= 5
+         ORDER BY "avgRating" DESC
+    </select>
+
+    <!-- 브랜드별 리뷰 수 랭킹 -->
+    <select id="selectBrandReviewRanking" resultType="map">
+        SELECT p.brand_name AS "brandName"
+             , COUNT(r.review_id) AS "reviewCount"
+          FROM t_product p
+          JOIN t_review r ON p.product_id = r.product_id
+         GROUP BY p.brand_name
+         ORDER BY "reviewCount" DESC
+    </select>
+
+</mapper>
